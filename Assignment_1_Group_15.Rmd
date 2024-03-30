@@ -1,0 +1,608 @@
+---
+title: |
+  | **Financial Econometrics in R/Python**
+  | Assignment One
+author: |
+  | 
+  |
+  | Business School, Imperial College London
+  |
+  | Group 15
+  |
+  | Group Member:
+  |
+  | 02430323 Lingxi Zhou
+  | 02381195 Miaolin Gong 
+  | 02512292 MohmedMaaeez Malek
+  | 02457971 Rachel Wang
+  | 02429291 Zhaoping Ran
+  |
+  |
+date: "06-11-2023"
+geometry: margin=1.5cm
+output: pdf_document
+---
+
+```{=tex}
+\newpage
+\tableofcontents
+\listoftables
+\listoffigures
+\newpage
+```
+# Preparation
+## Required Packages
+```{r Load libraries, message=FALSE, warning=FALSE}
+#install.packages("...")
+
+library(AER)
+library(readxl)
+library(dplyr)
+library(knitr)
+library(sandwich)
+library(lmtest)
+library(ggplot2)
+library(kableExtra)
+library(estimatr)
+library(car)
+library(knitr)
+library(MASS)
+
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+```
+
+## Load Data
+```{r Load Data, message=FALSE, warning=FALSE}
+growthdata = read_excel("growthdata.xlsx")
+
+```
+
+\newpage
+
+# Question 1
+
+**Using R or Python, compute the sample mean and standard deviation of growth and tradeshr.**
+
+```{r}
+q1_data = growthdata %>%
+  summarise(
+    mean_growth = mean(growth, na.rm = TRUE),
+    sd_growth = sd(growth, na.rm = TRUE),
+    mean_tradeshr = mean(tradeshr, na.rm = TRUE),
+    sd_tradeshr = sd(tradeshr, na.rm = TRUE)
+  )
+kable(q1_data, caption = "Sample mean and standard deviation of growth and tradeshr") %>% kable_styling(latex_options = "HOLD_position")
+
+```
+- Mean of growth: 1.942715 
+- Standard Deviation of growth: 1.89712 
+- Mean of tradeshr: 0.564703 
+- Standard Deviation of tradeshr: 0.2892703 
+
+\newpage
+
+# Question 2
+## a)
+**What is the coefficient on tradeshr? Explain in words what it means. Is the numerical value of your estimate large or small in an economic (real-world) sense?**
+
+```{r}
+reg1 <- lm(growth ~ tradeshr, growthdata)
+hc_reg1<- coeftest(reg1, vcov. = vcovHC(reg1, type = "HC1"))
+summary(reg1)
+print(hc_reg1)
+```
+In an economic (real world) sense, the positive coefficient suggests that an increase in trade as a share of the economy has a positive impact on the growth rate of real per capita GDP. This result aligns with economic theories that countries with a large share of trade in their economy are likely to experience higher GDP growth. 
+
+In terms of the magnitude of the coefficient, a 2.30643 per cent increase in GDP growth due to a one-unit increase in the average share of trade in the economy could be considered large, especially when compared to the mean growth rate, which is just 1.9427 per cent, suggesting that trade share has a more than a disproportionate effect on growth.
+
+Such large trade share coefficient may also raise questions about the regression model, as the large coefficient could be capturing the effect of not only trade but also other related economic factors. Therefore, given the complexity of economic growth, the coefficient might seem too large.
+\newpage
+
+## b)
+**Graph the data points and the estimated regression line.**
+```{r, fig.cap="Scatter Plot of Tradeshr to Growth with Regression Line"}
+plot(growthdata$tradeshr, growthdata$growth, 
+     main="Tradeshr to Growth with Regression Line", xlab="Tradeshr", ylab="Growth", pch=19)
+abline(reg1, col="red", lwd=2)
+legend("bottomright", legend=c("Data Points", "Regression Line"),col=c("black", "red"), pch=c(19, NA), lty=c(NA, 1), lwd=c(NA, 2))
+```
+
+## c)
+**Is the slope coefficient statistically significantly different from zero at the 5% significance level? Show how you reach this conclusion. **
+
+- Null Hypothesis ($H_0$): The coefficient on tradeshr is zero ($\hat{\beta}_{\text{tradeshr}} = 0$).
+- Alternative Hypothesis ($H_a$): The coefficient on tradeshr is not zero ($\hat{\beta}_{\text{tradeshr}} \neq 0$).
+
+From the regression summary in a), we can know that the p-value of tradeshr is 0.0009235, which is much lower than the a 5% significance level. The Null Hypothesis $H_0$ can be rejected suggesting that the coefficient of tradeshr is statistically different from zero at a 5% significance level.
+
+\newpage
+
+## d)
+**Report the 95% confidence interval for $\beta$, the slope of the population regression line.**
+```{r}
+ci_beta1 <- confint(hc_reg1, level=0.95)
+print(paste("The 95% Confidence Interval is: (", round(ci_beta1[2],5), ", ", round(ci_beta1[4],5), ")", sep=""))
+```
+
+## e)
+**What is the \(R^2\) of this regression? What does this mean? **
+```{r}
+r_squared_calculated <- summary(reg1)$r.squared
+print(paste("Calculated R-squared: ", round(r_squared_calculated,5)))
+```
+R-squared, also known as the coefficient of determination, is a statistical measure that indicates the proportion of the variance in the dependent variable that is explained by the independent variables in a regression model. The R-squared of this regression is 0.12368. This means that 12.37% of the variance in independent variables can be explained by the model.
+
+## f)
+**Compute the correlation coefficient between growth and tradeshr and compare its square to the \(R^2\). How are the correlation coefficient and the \(R^2\) related?**
+```{r}
+correlation_coefficient <- cor(growthdata$growth, growthdata$tradeshr)
+print(paste("Correlation Coefficient between growth and tradeshr: ", round(correlation_coefficient, 5)))
+r_squared_from_correlation <- correlation_coefficient^2
+print(paste("R-squared (from Correlation Coefficien squared): ", round(r_squared_from_correlation,5)))
+```
+$$
+r = \frac{\sum{(growth_i - \bar{growth})(tradeshr_i - \bar{tradeshr})}}{\sqrt{\sum{(growth_i - \bar{growth})^2} \sum{(tradeshr_i - \bar{tradeshr})^2}}}
+$$
+
+The correlation coefficient between growth and tradeshr is 0.3517, and \(R^2\) is 0.12368. In this simple regression model with one independent variable, \(R^2\) quantifies the proportion of the variance in growth that is predictable from tradeshr. Therefore, it results in a relationship of \(R^2 = r^2\) in this model.
+
+This relationship holds because \(R^2\) is essentially a measure of how much of the variability in the dependent variable is accounted for by the linear relationship with the independent variable. When there is only one predictor, the amount of variance explained by the model \(R^2\) is exactly the proportion of the variance in the dependent variable that can be explained by the relationship with the independent variable, which is what r measures. By squaring r, the result becomes proportion of variance explained, which is \(R^2\).
+
+\newpage
+
+## g)
+**What is the value of the root mean squared error of the regression? What does this mean? **
+```{r}
+rmse <- round(sqrt(mean(residuals(reg1)^2)),5)
+print(paste("Root Mean Squared Error (RMSE): ", rmse))
+```
+The Root Mean Squared Error (RMSE) of the regression is approximately 1.77. RMSE is used to evaluate the accuracy of a predictive model. It quantifies the average difference between the actual observed values and the predicted values produced by the model. An RMSE of 1.77 suggests that the model's predictions, on average, deviate from the actual historical growth rates by about 1.77 percentage points.
+
+In terms of the accuracy of this linear regression model, it depends on the specific application. In an economic context, the significance of an RMSE value depends on the magnitude of the growth rates and the importance of accurate predictions. An RMSE of 1.77 percentage points might be considered acceptable, as economic growth rates can fluctuate due to various factors. However, to assess this linear regression model's quality further, we could compare this RMSE value with other models or explore whether it meets the accuracy requirements for the specific application.
+
+## h)
+**Based on your graph from (b), does the regression error appear to be homoscedastic or heteroscedastic?**
+
+- **Homoscedasticity:** The error of the model has similar variance within different predicted value ranges and does not change significantly as the predicted value changes.
+
+- **Heteroskedasticity:** The variance of the error of the regression model is not constant and changes significantly as the predicted value changes.
+
+Based on the graph in Question 2 b), it appears that the regression error exhibits heteroskedasticity. It is observed that the spread of data points around the regression line varies as the tradeshr changes. The variance of data points increases notably around a tradeshr value of 0.5. For instance, within the vicinity of 0.5 tradeshr, the lowest growth rate is below -2%, while the highest growth rate exceeds 6%.
+
+```{r}
+gqtest(reg1)
+```
+
+The Goldfeld-Quandt Test is a statistical test to formally assess heteroskedasticity. According to this test, a p-value of 0.02105 is lower than a significance level of 5%, suggesting the regression error exhibit heteroskedasticity.
+
+
+\newpage
+## i)
+**Estimate the regression again with homoskedasticity-only standard errors. Compare the results to what you obtained with the heteroskedasticity-robust standard errors. What is different? **
+```{r}
+summary(reg1)
+print(hc_reg1)
+```
+The key difference between these two approaches is in the calculation of standard errors for the coefficients. The heteroskedasticity-robust standard error of the tradeshr coefficient (0.66329) is lower compared to the homoskedasticity standard error (0.7735). As a result, the t-value of tradeshr is higher when acknowledging the presence of heteroskedasticity (3.4773) than homoskedasticity-only (2.982), indicating stronger statistical significance. The p-value of the tradeshr coefficient is significantly lower when assuming the data is heteroskedastic (0.0009235) than homoskedastic (0.00407), further confirming the enhanced statistical significance.
+
+In summary, the key distinction lies in the standard errors, t-values, and p-values, with the heteroskedasticity-robust standard errors providing stronger statistical significance, particularly when heteroskedasticity is present in the data.
+
+\newpage
+## j)
+**You should see an outlier in the data set. Rerun the regression (with the “robust” option), dropping the outlier. Does dropping the outlier make a qualitative difference to your results? Explain.**
+```{r, fig.cap="Scatter Plot of Tradeshr to Growth (outlier removed)"}
+filtered_data <- growthdata %>% filter(tradeshr<1.5)
+plot(filtered_data$tradeshr,filtered_data$growth,
+     xlab="Tradeshr", ylab="Growth", pch=19, 
+     main="Plot of Tradeshr to Growth (outlier removed)", )
+```
+```{r, fig.cap="Scatter Plot of Tradeshr to Growth (outlier removed)"}
+reg_otrm <- rlm(growth ~ tradeshr, filtered_data)
+hc_reg_otrm<- coeftest(reg_otrm, vcov. = vcovHC(reg_otrm, type = "HC1"))
+hc_reg_otrm
+```
+\newpage
+- **Heteroskedasticity-robust regression with outlier**
+  - tradeshr coefficient: 2.30643
+  - Standard Error: 0.66329
+  - t-value: 3.4773
+  - p-value: 0.0009235
+
+- **Heteroskedasticity-robust regression with outlier removed and apply less weight on extreme values**
+  - tradeshr coefficient: 1.40276
+  - Standard Error: 0.79225
+  - z-value: 1.7706
+  - p-value: 0.07663
+
+**Coefficient Change:** Removing the outlier and using the rlm function (outlier-robust M estimator) has an apparent impact on the regression coefficient of tradeshr. With the outlier, the estimated coefficient is 2.30643. Once the outlier of 1.99 (Malta) is removed and giving less weight on the other extreme value, the estimated coefficient drops to 1.40276, indicating a less pronounced effect of trade on economic growth. This significant reduction in the coefficient suggests that the outlier and extreme values posed a large influence on the prediction result, potentially disrupting the true relationship between trade share and economic growth.
+
+**Model Significance Change:** Before removing the outlier included, the p-value is 0.00092, indicating that the tradeshr coefficient is statistically significant at a 5% significance level. After removing the outlier, the p-value increases to 0.07663, just above the 5% significance level. This change from a highly significant to a marginally nonsignificant p-value, challenging the robustness of the initial findings and suggesting the outlier might have inflated the significance of tradeshr.
+
+Dropping the outlier dose makes a qualitative difference. The observed changes in the coefficient and its p-value suggest that the initial analysis might have exaggerated the relationship between trade share and economic growth. 
+
+## k)
+**What is the outlying observation? Considering the economics of the relation you are investigating, in your judgement should that outlier be omitted from the regression? (You might need to do a bit of research about that outlier to answer this question properly.) **
+
+
+The outlying observation is Malta, with a ‘tradeshr’ value of 1.9926157 and a ‘growth’ value of 6.65283775. Based on research of this country, the relatively high trade share value of Malta from 1960 to 1995 can be attributed to its unique economic strength and trade policy. Malta with its unique characteristic  is reasonably to be omitted from the analysis based on the following analysis. 
+
+- **Trade Policy:** In terms of its liberal trade policy, it greatly encourages international trade and foreign investments. Meanwhile, Malta has signed various trade agreements, making it even much easier for businesses to engage in international trade, which leads to a relatively high value in export and import. From 1959 to 1964, Malta's first development programme was supported by the British Government, who had full employment as their main objective. Specifically, from 1959 to 1964, Malta's first development programme was supported by the British Government, which had full employment as the British's main objective. 
+
+- **Economic Strength:** In terms of its unique economic  strength, Malta's economy benefits from its strategic position in the Mediterranean. Hence, Malta acted as a pivotal link between Europe, North Africa, and the Middle East. Moreover, Malta boasts a mature open-market economy with a highly skilled and multilingual labour pool. These also made Malta pay a lot attention to international trade and highly depend on import and export. 
+
+Considering these aspects of Malta, it is reasonable that Malta’s unique characteristics and high dependence on international trade makes it apart from the rest of the countries in the dataset. Therefore, omitting Malta from the analysis as an outlier helps to ensure that the regression model has wider applicability. At the same time, it ensures that the relationship between the variables is not unduly influenced by this one exception.
+
+
+
+\newpage
+
+# Question 3
+
+**Construct a new variable, lorgdp60, which equals one if the economy’s GDP is in the bottom quartile of GDP for 1960 and equals zero otherwise. Estimate a regression of growth on lorgdp60 with heteroskedasticity-robust standard errors.**
+```{r}
+q3_data <- growthdata %>%
+  mutate(
+    lorgdp60 = ifelse(
+      rgdp60 > quantile(rgdp60, 0.25, na.rm = TRUE),
+      0, 
+      1   
+    )
+  )
+q3_data$lorgdp60 <- as.factor(q3_data$lorgdp60)
+```
+
+## a)
+**What is the coefficient on lorgdp60? Explain in words what this means. Is the numerical value of your estimate large or small in an economic (real-world) sense?**
+
+```{r}
+q3r1 <- lm(growth ~ lorgdp60, data = q3_data)
+q3r1_hcrb <- coeftest(q3r1, vcov = vcovHC(q3r1, type = "HC1"))
+print(q3r1_hcrb)
+```
+
+The coefficient on lorgdp60 is -1.454. It means that if a country is in the bottom quantile of GDP, its expected annual economic growth rate in 1960 increases by 2.3231% - 1.4544% = 0.8687%. If not, its expected annual economic growth in 1960 increases by 2.3231%. The negative sign of the coefficient illustrates that countries with lower GDP generally have lower economic growth rates. However, the magnitude of the coefficient of 1.45439 might seem a bit large, especially when compared to the mean growth rate, which is just 1.9427 per cent. Since there are only two groups, the growth rate of countries near 25% decile will not make much difference, in which case the error will be large.
+
+
+## b) 
+**Test the hypothesis that the mean growth rate from 1960-1995 is the same for economies with lorgdp60 = 1 as it is for economies with lorgdp60 = 0, against the alternative that they differ, at the 5% significance level.**
+
+The test we are doing is to test whether there is a significant relationship between lorgdp60 and economic growth. It is to test whether there is a relationship between countries in the bottom quantile of GDP and economy growth. If we later reject the null hypothesis, it means that we are 95% confident to say that countries in the bottom quantile (lorgdp60) and economic growth are related to some extend.
+
+- Null Hypothesis ($H_0$): The coefficient on lorgdp60 is zero ($\hat{\beta}_{\text{lorgdp60}} = 0$).
+- Alternative Hypothesis ($H_a$): The coefficient on tradeshr is not zero ($\hat{\beta}_{\text{lorgdp60}} \neq 0$).
+
+The coefficient of lorgdp60 is -1.45439 and its standard error is 0.62869. Since the P-value of $\hat{\beta}_{\text{lorgdp60}}$ is 0.02398 < 0.05, which is small, we can reject \(H_0\) and suggest that from 1960 to 1995, the mean growth rates differ for economies with lorgdp60 = 1 and lorgdp60 = 0 at the 5% significance level.
+
+
+## c)
+**Compute the sample average of growth for economies with lorgdp60 = 1 and then again for economies with lorgdp60 = 0; from this compute the difference in mean GDP growth rates for the two groups and construct the differences-of means t-statistic testing the hypothesis that the mean growth rates are the same.**
+
+```{r}
+mean_growth_1 <- mean(q3_data$growth[q3_data$lorgdp60 == 1], na.rm = TRUE)
+mean_growth_0 <- mean(q3_data$growth[q3_data$lorgdp60 == 0], na.rm = TRUE)
+diff_mean_growth <- mean_growth_1-mean_growth_0
+diff_mean_growth
+```
+```{r}
+t_test_result=t.test(q3_data$growth[q3_data$lorgdp60 == 1],
+                     q3_data$growth[q3_data$lorgdp60 == 0], 
+                     mu = 0, na.action = na.omit)
+t_test_result
+```
+
+
+The sample average of growth for economies with lorgdp60 = 1 is 0.8687 and the sample average of growth for economies with lorgdp60 = 0 is 2.3231. The difference between these two means equals to -1.4544.
+
+Assume economies with lorgdp0 = 1 is in group 1, economies with lorgdp0 = 0 is in group 2. The test we are doing is to test whether there is a significant difference between mean growth rates of two groups. If we later reject the null hypothesis, it means we are 95% confident to say that these two groups have different mean growth rates.
+
+- Null Hypothesis ($H_0$): The mean growth rates for two groups is the same(${\mu}_{\text{group1}} = {\mu}_{\text{group2}}$).
+- Alternative Hypothesis ($H_a$): The mean growth rates for two groups is different(${\mu}_{\text{group1}} \neq {\mu}_{\text{group2}}$).
+
+The t-statistic of this test is -2.285 and its P-value is 0.03315 < 0.05. Hence we reject the null hypothesis and conclude that the difference in means of growth rate from 1960-1995 for economies with lorgdp60 = 1 and economies with lorgdp60 = 0 is significantly different from 0 at the 5% level.
+
+\newpage
+
+## d)
+**Re-estimate the regression of growth on lorgdp60 with homoskedasticity-only standard errors. How does the t-statistic computed in (c) compare to the t-statistic on the slope coefficient in the regression of growth on lorgdp60 obtained with heteroskedasticity-robust and homoskedasticity-only standard errors? Explain.**
+
+```{r}
+summary(q3r1)
+```
+The t value computed in c) is -2.285, and t-values on the slope coefficient on lorgdp60 with heteroskedasticity-robust and homoskedasticity-only standard errors are -2.313 and -2.865 respectively. All of them are significant at 5% level because of small P-values. 
+
+The t-value computed in c) is smaller than the other two t-values. Although they are all t-statistic, they are applied for different tests. For t-statistic in c), it aims to compare the means of two sample group by t-test. For t-statistic in linear regression, it is used to test the significance of estimate regression coefficients. The model with heteroskedasticity-robust standard error has smaller P-value than that with homoskedasticity-only standard error, which means the coefficient on lorgdp60 of the former model is more significantly different from zero.
+
+\newpage
+
+# Question 4
+## Data Manipulation
+```{r, message=FALSE, warning=FALSE}
+colnames(growthdata)[1] = "country"
+q4_data <- growthdata %>%
+  mutate(civil = as.numeric(civil)) %>%
+  filter(country != "Malta")
+```
+## Regression (1)
+```{r Regression One}
+# Models
+q4r1 = lm(growth ~ tradeshr + school60, q4_data)
+q4r1_hcrb = coeftest(q4r1, vcov = vcovHC(q4r1, type = "HC1"))
+# Coefficients & Betas
+beta0_q4r1 = round(q4r1_hcrb[1, 1], 6)
+beta0se_q4r1 = round(q4r1_hcrb[1, 2], 6)
+beta1_q4r1 = round(q4r1_hcrb[2, 1], 6)
+beta1se_q4r1 = round(q4r1_hcrb[2, 2], 6)
+beta2_q4r1 = round(q4r1_hcrb[3, 1], 6)
+beta2se_q4r1 = round(q4r1_hcrb[3, 2], 6)
+#Tests and Summary
+hypo_q4r1 = linearHypothesis(q4r1, c("tradeshr = 0", "school60 = 0"), 
+                             test = "F", vcov = vcovHC(q4r1, type = "HC1"))
+hypo_q4r1_f = round(hypo_q4r1$F[2],6)
+hypo_q4r1_p = round(hypo_q4r1$`Pr(>F)`[2],6)
+r2_q4r1 = round(summary(q4r1)$r.squared,6)
+r2ad_q4r1 = round(summary(q4r1)$adj.r.squared,6)
+rmse_q4r1 = round(sqrt(mean(summary(q4r1)$residuals^2)),6)
+n_q4r1 = length(q4r1$residuals)
+```
+
+## Regression (2)
+
+```{r Regression Two}
+# Models
+q4r2 = lm(growth ~ tradeshr + school60 + capstock60, q4_data)
+q4r2_hcrb = coeftest(q4r2, vcov = vcovHC(q4r2, type = "HC1"))
+# Coefficients & Betas
+beta0_q4r2 = round(q4r2_hcrb[1, 1], 6)
+beta0se_q4r2 = round(q4r2_hcrb[1, 2], 6)
+beta1_q4r2 = round(q4r2_hcrb[2, 1], 6)
+beta1se_q4r2 = round(q4r2_hcrb[2, 2], 6)
+beta2_q4r2 = round(q4r2_hcrb[3, 1], 6)
+beta2se_q4r2 = round(q4r2_hcrb[3, 2], 6)
+beta3_q4r2 = round(q4r2_hcrb[4, 1], 6)
+beta3se_q4r2 = round(q4r2_hcrb[4, 2], 6)
+#Tests and Summary
+hypo1_q4r2 = linearHypothesis(q4r2, c("tradeshr = 0", "school60 = 0"), 
+                              test = "F", vcov = vcovHC(q4r2, type = "HC1"))
+hypo1_q4r2_f = round(hypo1_q4r2$F[2],6)
+hypo1_q4r2_p = round(hypo1_q4r2$`Pr(>F)`[2],6)
+hypo2_q4r2 = linearHypothesis(q4r2, c("tradeshr = 0", "school60 = 0", "capstock60=0"), 
+                              test = "F", vcov = vcovHC(q4r2, type = "HC1"))
+hypo2_q4r2_f = round(hypo2_q4r2$F[2],6)
+hypo2_q4r2_p = round(hypo2_q4r2$`Pr(>F)`[2],6)
+r2_q4r2 = round(summary(q4r2)$r.squared,6)
+r2ad_q4r2 = round(summary(q4r2)$adj.r.squared,6)
+rmse_q4r2 = round(sqrt(mean(summary(q4r2)$residuals^2)),6)
+n_q4r2 = length(q4r2$residuals)
+```
+
+## Regression (3)
+```{r Regression Three}
+q4r3_data = q4_data %>% filter(!is.na(civil))
+# Models
+q4r3 = lm(growth ~ tradeshr + school60 + capstock60 + rev_coups + civil, q4r3_data)
+q4r3_hcrb = coeftest(q4r3, vcov = vcovHC(q4r3, type = "HC1"))
+# Coefficients & Betas
+beta0_q4r3 = round(q4r3_hcrb[1, 1], 6)
+beta0se_q4r3 = round(q4r3_hcrb[1, 2], 6)
+beta1_q4r3 = round(q4r3_hcrb[2, 1], 6)
+beta1se_q4r3 = round(q4r3_hcrb[2, 2], 6)
+beta2_q4r3 = round(q4r3_hcrb[3, 1], 6)
+beta2se_q4r3 = round(q4r3_hcrb[3, 2], 6)
+beta3_q4r3 = round(q4r3_hcrb[4, 1], 6)
+beta3se_q4r3 = round(q4r3_hcrb[4, 2], 6)
+beta4_q4r3 = round(q4r3_hcrb[5, 1], 6)
+beta4se_q4r3 = round(q4r3_hcrb[5, 2], 6)
+beta5_q4r3 = round(q4r3_hcrb[6, 1], 6)
+beta5se_q4r3 = round(q4r3_hcrb[6, 2], 6)
+#Tests and Summary
+hypo1_q4r3 = linearHypothesis(q4r3, c("tradeshr = 0", "school60 = 0"), 
+                              test = "F", vcov = vcovHC(q4r3, type = "HC1"))
+hypo1_q4r3_f = round(hypo1_q4r3$F[2],6)
+hypo1_q4r3_p = round(hypo1_q4r3$`Pr(>F)`[2],6)
+hypo2_q4r3 = linearHypothesis(q4r3, c("tradeshr = 0", "school60 = 0", "capstock60=0"), 
+                              test = "F", vcov = vcovHC(q4r3, type = "HC1"))
+hypo2_q4r3_f = round(hypo2_q4r3$F[2],6)
+hypo2_q4r3_p = round(hypo2_q4r3$`Pr(>F)`[2],6)
+hypo3_q4r3 = linearHypothesis(q4r3, c("rev_coups = 0", "civil = 0"), 
+                              test = "F", vcov = vcovHC(q4r3, type = "HC1"))
+hypo3_q4r3_f = round(hypo3_q4r3$F[2],6)
+hypo3_q4r3_p = round(hypo3_q4r3$`Pr(>F)`[2],6)
+r2_q4r3 = round(summary(q4r3)$r.squared,6)
+r2ad_q4r3 = round(summary(q4r3)$adj.r.squared,6)
+rmse_q4r3 = round(sqrt(mean(summary(q4r3)$residuals^2)),6)
+n_q4r3 = length(q4r3$residuals)
+```
+\newpage
+
+## Question 4 Growth Regression Results
+\renewcommand{\arraystretch}{1.5}
+```{r Question 4 Growth Regression Results Table}
+q4df <- data.frame(Regression = c("tradeshr", "se", "school60", "se", "capstock60", "se", "rev\\_coups", "se", "civil", "se", "Intercept","se","tradeshr, school60", "p-value", "tradeshr, school60, capstock60", "p-value", "rev\\_coups, civil", "p-value","$\\bar{R}^2$", "$R^2$", "Regression RMSE", "n"),
+  `(1)` = c(beta1_q4r1, sprintf("(%f)",beta1se_q4r1), beta2_q4r1, sprintf("(%f)",beta2se_q4r1), "-", "", "-", "", "-", "", beta0_q4r1, sprintf("(%f)", beta0se_q4r1), hypo_q4r1_f, hypo_q4r1_p, "-", "", "-", "",r2ad_q4r1,r2_q4r1,rmse_q4r1,n_q4r1),
+  `(2)` = c(beta1_q4r2, sprintf("(%f)",beta1se_q4r2), beta2_q4r2, sprintf("(%f)",beta2se_q4r2), beta3_q4r2, sprintf("(%f)",beta3se_q4r2), "-", "", "-", "", beta0_q4r2, sprintf("(%f)", beta0se_q4r2), hypo1_q4r2_f, hypo1_q4r2_p, hypo2_q4r2_f, hypo2_q4r2_p, "-", "",r2ad_q4r2,r2_q4r2,rmse_q4r2,n_q4r2),
+  `(3)` = c(beta1_q4r3, sprintf("(%f)",beta1se_q4r3), beta2_q4r3, sprintf("(%f)",beta2se_q4r3), beta3_q4r3, sprintf("(%f)",beta3se_q4r3), beta4_q4r3, sprintf("(%f)",beta4se_q4r3), beta5_q4r3, sprintf("(%f)",beta5se_q4r3), beta0_q4r3, sprintf("(%f)", beta0se_q4r3), hypo1_q4r3_f, hypo1_q4r3_p, hypo2_q4r3_f, hypo2_q4r3_p, hypo3_q4r3_f, hypo3_q4r3_p,r2ad_q4r3,r2_q4r3,rmse_q4r3,n_q4r3))
+
+kable(q4df, caption = 'Question 4 Growth Regression Results', 
+      col.names = c("Regression", "(1)", "(2)", "(3)"), 
+      align = c('l', 'l', 'l', 'l'), booktabs = TRUE, escape = FALSE) %>%
+  row_spec(row = 0, bold = TRUE) %>%
+  kable_styling(latex_options = "HOLD_position", full_width = FALSE, font_size = 10) %>%
+  column_spec(2:4, width = "3cm") %>% 
+  add_header_above(c("Growth Regression Results\nDependent variable: Growth" = 4)) %>%
+  pack_rows("Regressor", 1, 12) %>%
+  pack_rows("F-statistics", 13, 18) %>%
+  pack_rows("Regression summary statistics", 19, 22)
+```
+
+
+\newpage
+
+# Question 5
+**Estimate the regression of growth against tradeshr, school60, and oil. What is the coefficient on oil? Explain why you obtained this result.**
+```{r  Q5}
+q5r1 <- lm(growth ~ tradeshr + school60 + oil, data = q3_data)
+# q5r1_hcrb = coeftest(q5r1, vcov = vcovHC(q5r1, type = "HC1"))
+summary(q5r1)
+```
+The coefficient on oil is NA. From the dataframe, all values in 'oil' column are zero, which results in the variance becomes 0. The method of estimating the regression coefficient is least squares estimation. The coefficient on oil should be the covariance between growth and oil divided by the variance of oil. Hence, when the denominator is 0, the coefficient becomes NA. 
+
+\newpage
+
+# Question 6
+## a)
+**Write the regression in column (1) in equation form with the standard error below the respective regression coefficient.**
+$$
+\begin{split}
+Growth = -0.122236 + 1.897823 \times tradeshr + 0.242975 \times school60 \\ 
+(0.691165) \;\;(0.865541) \;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;(0.075892)\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;\;
+\end{split}
+$$
+
+
+## b)
+**Explain in words what the coefficient on school60 means in regression (1).**
+
+The coefficient on school60 means that for every additional year of average schooling, the average annual percentage growth of real per capita Gross Domestic Product is expected to increase by 0.242975 percentage, holding all others constant.
+
+## c)
+**Using regression (1), test the hypothesis that the coefficient on tradeshr is zero, against the alternative that it is nonzero, at the 5% significance level. In everyday words (not statistical terms), what precisely is the hypothesis that you are testing?**
+
+In everyday words, the test we are doing is to test whether there is a significant relationship between trade share and economic growth. That is, whether trade can influence the economy. If we later reject the null hypothesis, it means we are 95% confident to say that trade share and economic growth are related to some extend.
+
+- Null Hypothesis ($H_0$): The coefficient on tradeshr is zero ($\hat{\beta}_{\text{tradeshr}} = 0$).
+- Alternative Hypothesis ($H_a$): The coefficient on tradeshr is not zero ($\hat{\beta}_{\text{tradeshr}} \neq 0$).
+
+The coefficient of tradeshr is 1.897823 and its standard error is 0.865541 with a P-value of 0.032157. Since the 
+P-value less than 0.05, we can reject the $H_0$ null hypothesis, suggesting that the coefficient of tradeshr is significantly different from zero at the 5% significance level. This means we are 95% confident to say that trade might influence economic growth.
+
+## d)
+**Does the coefficient on tradeshr differ in regressions (1), (2), and (3) in a substantively important way, that is, is the difference between the three estimates large in a real-world sense?**
+
+The differences in tradeshr coeffcients between regressions (1) and (2) is relatively small, especially considering the standard errors of the estimates. This indicates that the adding capstock60 had a small impact on the tradeshr coefficients.
+
+However, the inclusion of rev_coups and civil in Regression (3) results in a more significant decrease in the coefficient for tradeshr. This suggests that these additional variables explain a considerable portion of the change in economic growth, reducing the impact of trade share,  acknowledging that economic growth does not only affect trade and school years.The added regressors (rev_coups and civil) in Regression (3) addressed the critical aspect of political and social stability. 
+
+- The negative coefficient for rev_coups (-1.5071) indicates that an increase in the average annual number of revolutions, insurrections, and coup d'état will lead to a decrease in economic growth. 
+- The negative coefficient of civil (-0.3358) suggests that an increase in the index of civil liberties (higher index means less liberties)  results in an economic growth decrease.
+
+This observation aligns with real-world context in which increase political instability and worsen civil liberties could lead to decrease in economic condition. 
+
+## e)
+**Economic theory predicts that tradeshr, school60, and capstock60 all are determinants of economic growth. Use regression (2) to test the hypothesis (at the 5% significance level) that the coefficients on these three economic variables are all zero, against the alternative that at least one coefficient is nonzero.**
+
+- Null Hypothesis ($H_0$): $\hat{\beta}_{\text{tradeshr}} = \hat{\beta}_{\text{school60}} =  \hat{\beta}_{\text{capstock60}} = 0$
+- Alternative Hypothesis ($H_a$): at least one of the $\hat{\beta}_{\text{tradeshr}},\,\hat{\beta}_{\text{school60}} ,\,\hat{\beta}_{\text{capstock60}}$ is different from 0
+
+In the Table 2 from Question 4, we can get the F_statistic and its P_value from for testing $\hat{\beta}_{\text{tradeshr}},\,\hat{\beta}_{\text{school60}} ,\,\hat{\beta}_{\text{capstock60}}$ jointly. The F_statistic is 5.557005 its P_value is 0.001968. The P_value is less than 0.05, so we can reject the $H_0$ null hypothesis and conclude that at least one of the estimated coefficient is different from zero. This means that there is sufficient evidence to say that trade, school years and capital stocks togather have a statistically significant effect on economic growth.
+
+## f)
+**Using regression (3), consider the coefficient on rev_coups. Does the sign and magnitude make sense? Explain.**
+
+The coefficient of rev_coups in regression (3) is -1.507077. 
+
+- The negative sign of rev_coups coefficient means that as the average annual number of revolutions, insurrections, and coup d'états increases, economy growth will decrease. This makes sense real-world context as political instability often leads to disruptions in economic activities.
+- The magnitude of the coefficient is 1.5071 which is relatively large, suggesting a substantial impact of political instability on economic growth. However, it’s important to also consider its standard error and statistical significance to make a more concrete conclusion.
+
+## g)
+**Using regression (3), consider the coefficient on civil. Does the sign and magnitude make sense? Explain.**
+
+The coefficient of civil in regression (3) is -0.335812.
+
+- The negative sign of civil coefficient implies that as the index of civil liberties increases, the economic growth will decreases. This make sense in the real world as countries with less civil liberties tend to have more restrictions on individual and economic freedoms, which could stifle some opportunities and innovations and ultimatly leading to less economic growth.
+- The magnitude of civil coefficient is 0.3358, while it is not as large as the coefficient for rev_coups, it still represents some impact on economic growth. 
+
+## h)
+**In regression (3), is the coefficient on rev_coups statistically significant at the 5% significance level? Is the coefficient on civil statistically significant at the 5% significance level?**
+
+Testing rev_coups coefficient significance: 
+
+- Null Hypothesis ($H_0$): The coefficient on rev_coups is zero ($\hat{\beta}_{\text{rev\_coups}} = 0$)
+- Alternative Hypothesis ($H_a$): The coefficient on rev_coups is not zero ($\hat{\beta}_{\text{rev\_coups}} \neq 0$)
+
+The coefficient of rev_coups is -1.507077 and its standard error is 0.874604 with a P-value of 0.0902821. Since the P-value is greater than than 0.05, we do not reject the $H_0$ null hypothesis, suggesting that the coefficient of rev_coups is not significantly different from zero at the 5% significance level. This also suggest that that we cannot confidently conclude the result of political instability has a definitive impact on economic growth.
+
+Testing civil coefficient significance:
+
+- Null Hypothesis ($H_0$): The coefficient on civil is zero ($\hat{\beta}_{\text{civil}} = 0$)
+- Alternative Hypothesis ($H_a$): The coefficient on civil is not zero ($\hat{\beta}_{\text{civil}} \neq 0$)
+
+The estimated coefficient of civil is -0.335812, and its standard error is 0.173024, resulting in a P-value of 0.0572280. Since the P-value is greater than 0.05, we do not reject the null hypothesis $H_0$, suggesting that the coefficient of civil is not significantly different from zero at the 5% significance level. This also suggest that that we cannot confidently conclude the result of civil liberty has a definitive impact on economic growth.
+
+## i)
+**Use the heteroskedasticity-robust F-statistic to test the hypothesis (at the 1% significance level) that the coefficients on the political variables (rev_coups and civil) in regression (3) are both zero, against the alternative that one or the other or both are nonzero. Discuss in light of your answer to part (h).**
+
+F-statistic testing rev_coups, civil: 8.876634, p-value: 0.000441
+
+- Null Hypothesis ($H_0$): $\hat{\beta}_{\text{rev\_coups}} = \hat{\beta}_{\text{civil}} = 0$
+- Alternative Hypothesis ($H_a$): at least one of the $\hat{\beta}_{\text{rev\_coups}},\,\hat{\beta}_{\text{civil}}$ is different from 0
+
+The F-statistic for testing if rev_coups and civil are significantly different from zero is 8.876634, and the p-value is 0.000441. Given that the p-value is less than 0.01, we reject the null hypothesis at the 1% significance level, suggesting that at least one of the coefficients on rev_coups and civil is significantly different from zero, indicating that political instability and civil liberties have a joint effect on economic growth.
+
+However, in question (h) we concluded that neither rev_coups nor civil were individually significant at the 5% significance level. It is possible to encounter this kind of discrepancy when variables are found to be significant jointly but not individually. This showed the importance of taking into account the joint significance of regressors, particularly when they might be related or have a combined effect. In this case, countries with low civil liberty (high index value) might tend to have higher rates of political instability as people might resist and protest. From the plot, we can see there might be a relationship between those two. We can run a simple regression of civil on rev_coups to see if this is true.
+
+```{r echo=FALSE, fig.cap="Civil Liberties vs. Political Instability" ,fig.height=3, fig.width=4}
+# Fitting a linear regression model
+rev_vs_civil <- lm(rev_coups ~ civil, data = q4_data)
+# Plotting the scatter plot
+plot(q4_data$civil, q4_data$rev_coups,
+     main="Civil Liberties vs. Political Instability",
+     xlab="Civil Liberties Index (1 to 10)",
+     ylab="Number of Revolutions",
+     pch=16, col="blue")
+# Adding the regression line
+abline(rev_vs_civil, col="red", lwd=2)
+```
+
+$$
+\hat{rev\_coups} = -0.002414 + 0.055014 \cdot civil
+$$
+The estimated coefficient for civil is \( \hat{\beta}_{\text{civil}} = 0.055014 \). The t-value is \( t = 3.973 \) and the associated p-value is \( p = 0.00019 \) < 0.05, suggesting there is a significant relationship between civil and rev_coups. However, it is important to note that this does not imply causation, and further investigation would be necessary to draw more definitive conclusions.
+
+## j)
+**The neoclassical theory of human capital suggests that countries with more human capital – that is, a better educated work force – will have a higher rate of productivity and therefore have a higher growth rate. Is this prediction borne out in the regression results? Explain.**
+
+- Regression (1): The estimated coefficient of school60 is 0.242975. The p-value is 0.002172, which is less than 0.05.
+- Regression (2): The estimated coefficient of school60 is 0.501303. The p-value is 0.0008443, which is less than 0.05.
+- Regression (3): The estimated coefficient of school60 is 0.391570. The p-value is 0.0037371, which is less than 0.05.
+
+The results of three regressions (1) - (3) all indicated that the coefficient for school60 is positive and statistically significant at the 5% level, suggesting that higher education levels could contribute to higher economic growth for the country. This result supports the neoclassical theory of human capital that countries with more human capital tend to have higher productivity and growth rates. 
+
+## k)
+**Explain why the coefficient on school60 and its standard error are so different in regressions (1) and (2).**
+
+- Regression (1): Coefficient for school60 is 0.242975. Standard Error for school60 is 0.075892
+- Regression (2): Coefficient for school60 is 0.501303 Standard Error for school60 is 0.142630
+
+There are several reasons why the estimated coefficient and SE are different in regressions (1) and (2).
+
+1. Added Explanatory Variable: the difference in coefficient and SE might caused by the additional explanatory variable (capstock60) in regression (2). Capital Stock here might capture some of the variation in economic growth that was previously explained to school60. As a result, the coefficient for school60 increased, which also led to an increased SE.
+2. Multicollinearity: the added capstock60 might be correlated with school60 as countries with more capital usually have more wealth, which leads to better education, i.e. school years. This could cause inaccurate estimation or discrepancy in the model, therefore increasing the standard error.
+3. Omitted Variables Proxy: in regression (1), school60 might be acting as a proxy for other variables related to economic growth, in this case, capital stock. Adding capstock60 in Regression (2) changes this dynamic, affecting the coefficient. 
+
+## l)
+**Using regression (3), estimate the difference in growth rates between a country with 4 years of school and 8 years of school in 1960, holding constant the other variables in regression (3). Also compute a 95% confidence interval for this difference.**
+
+The equation of regression (3): 
+$$
+\hat{y} = 1.92067 + 1.24298 \cdot \text{tradeshr} + 0.39157 \cdot \text{school60} - 0.18733 \cdot \text{capstock60} - 1.50708 \cdot \text{rev\_coups} - 0.33581 \cdot \text{civil} \\
+$$
+We can estimate the confidence interval by:
+$$
+\Delta Growth = \hat{\beta}_{\text{school60}} \times \Delta \text{school60} \\
+$$
+$$
+CI = \Delta \text{Growth} \pm t_{\text{df}} \times SE(\hat{\beta}_{\text{school60}})
+$$ 
+
+```{r}
+diff_in_g = beta2_q4r3 * (8 - 4)
+t_crit = qt(0.975, df = 63 - 5 - 1)
+q6_l_upper = diff_in_g + t_crit * beta2se_q4r3
+q6_l_lower = diff_in_g - t_crit * beta2se_q4r3
+```
+```{r include=FALSE}
+cat("The 95% confidence interval for the difference in growth rates between a country with 4 years of school and 8 years of school is:", round(q6_l_lower, 4), "to", round(q6_l_upper, 4), "\n")
+```
+
+The 95% confidence interval for the difference in growth rates between a country with 4 years of school and 8 years of school is: 1.3069 to 1.8257. 
+
